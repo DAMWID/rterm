@@ -1,0 +1,71 @@
+rTerm Changelog
+====================
+
+1.20 (2010//)
+-----------------------------------
+Market Change Note: WVGA support
+
+*Changes*
+
+*Features*
+
+* Add WVGA Support
+* click url will open the browser
+
+*Fixes*
+
+*Project Updates*
+
+*Contributors*
+
+Fred Lin, NCLiang, pncbks
+
+1.10 (2009/10/20)
+-----------------------------------
+Market Change Note: Soft Input, Gesture, QVGA support
+
+*Changes*
+
+* Change Site Editor UI
+* Use PreferenceActivity in Site Editor
+
+*Features*
+
+* Add Gesture Support
+* Add QVGA Support
+* Add Traditional Chinese Translation
+* Add Language selector while first run
+* Add PTT in default site list
+
+*Fixes*
+
+* fix typo
+
+*Project Updates*
+
+* public project on GoogleCode
+* add LICENSE.txt
+* add CHANGELOG.txt
+* add TODO.txt
+
+*Contributors*
+
+panhaidong, Fred Lin
+
+1.0.6 (2009)
+-----------------------------------
+Brief Note: add hover navigation button
+
+*Changes*
+
+*Features*
+
+* hover navigation button
+
+*Fixes*
+
+*Project Updates*
+
+*Contributors*
+
+panhaidong

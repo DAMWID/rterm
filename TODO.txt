@@ -1,0 +1,7 @@
+TODO
+==========
+
+* virtual keyboard (Magic, Hero)
+* 中文输入
+* 加入手勢操作支持 (如 Android 1.6 版)
+* 多重解析度支持 (很快會有 QVGA 跟 WVGA 機種)
