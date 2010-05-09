@@ -1,5 +1,6 @@
 package com.roiding.rterm;
 
+import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.Array;
 import java.net.SocketException;
@@ -12,9 +13,11 @@ import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.Typeface;
 import android.graphics.Bitmap.Config;
+import android.os.Environment;
 import android.os.SystemClock;
 import android.util.AttributeSet;
 import android.util.Log;
+import android.util.DisplayMetrics;
 import android.view.KeyCharacterMap;
 import android.view.KeyEvent;
 import android.view.MotionEvent;
@@ -37,13 +40,11 @@ import de.mud.terminal.vt320;
 public class TerminalView extends View implements VDUDisplay {
 	final String TAG = "rterm.view";
 
-	private static final int TERM_WIDTH = 80;
-	private static final int TERM_HEIGHT = 24;
+	private static int TERM_WIDTH = 80;
+	private static int TERM_HEIGHT = 24;
 
 	private ArrayList<Url>[] urls;
 
-	public int SCREEN_WIDTH_DEFAULT;
-	public int SCREEN_HEIGHT_DEFAULT;
 	public float CHAR_WIDTH;
 	public float CHAR_HEIGHT;
 	public int SCREEN_WIDTH;
@@ -76,14 +77,11 @@ public class TerminalView extends View implements VDUDisplay {
 	public TerminalActivity terminalActivity;
 	public Host host;
 
-	private Boolean highres;
-
 	public TerminalView(Context context, AttributeSet attrs,
-			TerminalActivity terminalActivity, Boolean highres) {
+			TerminalActivity terminalActivity) {
 		super(context, attrs);
 
 		this.terminalActivity = terminalActivity;
-		this.highres = highres;
 		setFocusable(true);
 		setFocusableInTouchMode(true);
 		init();
@@ -106,89 +104,45 @@ public class TerminalView extends View implements VDUDisplay {
 			}
 		};
 
+		DisplayMetrics dm = new DisplayMetrics();
+		terminalActivity.getWindowManager().getDefaultDisplay().getMetrics(dm);
+		SCREEN_WIDTH = dm.widthPixels;
+		SCREEN_HEIGHT = dm.heightPixels;
+
+		if ((SCREEN_WIDTH * 2 / TERM_WIDTH) > (SCREEN_HEIGHT / TERM_HEIGHT)) {
+			fontSize = (int)(SCREEN_HEIGHT / TERM_HEIGHT);
+		} else {
+			fontSize = (int)(SCREEN_WIDTH * 2 / TERM_WIDTH);
+		}
+
+		CHAR_WIDTH = (int)(fontSize / 2);
+		fontSize = CHAR_HEIGHT = CHAR_WIDTH * 2;
+		TERM_WIDTH = (int)(SCREEN_WIDTH / CHAR_WIDTH);
+		TERM_HEIGHT = (int)(SCREEN_HEIGHT / CHAR_HEIGHT);
+		
 		buffer.setBufferSize(SCROLLBACK);
 		buffer.setDisplay(this);
 		buffer.setScreenSize(TERM_WIDTH, TERM_HEIGHT, true);
 
+		File fontfile = new File(Environment.getRootDirectory(), "fonts/DroidSansJapanese.ttf");
+		Typeface typeface = fontfile.exists() ? Typeface.createFromFile(fontfile) : Typeface.MONOSPACE;
 		defaultPaint.setAntiAlias(true);
-		defaultPaint.setTypeface(Typeface.MONOSPACE);
-		setFontSize(fontSize);
-
-		// Workaround to create array of ArrayList generic type.
-		urls = (ArrayList<Url>[]) Array.newInstance(ArrayList.class, TERM_HEIGHT);
-	}
-
-	private void setFontSize(float size) {
-		if (size < 11f)
-			size = 11f;
-
-		fontSize = size;
-		defaultPaint.setTextSize(size);
-		// TODO: change fix value to adaptive more screen resolutions
-		if(this.highres){
-			SCREEN_WIDTH_DEFAULT = 854;
-			SCREEN_HEIGHT_DEFAULT = 480;
-			CHAR_WIDTH = 7f;
-		} else {
-			SCREEN_WIDTH_DEFAULT = 480;
-			SCREEN_HEIGHT_DEFAULT = 320;
-			CHAR_WIDTH = 6f;
-		}
-		
-		CHAR_HEIGHT = 13.3f;
-		
-
-		SCREEN_WIDTH = SCREEN_WIDTH_DEFAULT;
-		SCREEN_HEIGHT = SCREEN_HEIGHT_DEFAULT;
-
-//		CHAR_WIDTH = SCREEN_WIDTH / TERM_WIDTH;
-//		CHAR_HEIGHT = SCREEN_HEIGHT / TERM_HEIGHT;
-		// SCREEN_WIDTH = SCREEN_WIDTH_DEFAULT;
-		// SCREEN_HEIGHT = SCREEN_HEIGHT_DEFAULT;
-
-		// if (size <= 11f) {
-		// CHAR_WIDTH = 6;
-		// CHAR_HEIGHT = 13;
-		// SCREEN_WIDTH = SCREEN_WIDTH_DEFAULT;
-		// SCREEN_HEIGHT = SCREEN_HEIGHT_DEFAULT;
-		// } else if (size <= 12.5f) {
-		// CHAR_WIDTH = 6.1f;
-		// CHAR_HEIGHT = 14;
-		// SCREEN_WIDTH = (int) (CHAR_WIDTH * TERM_WIDTH);
-		// SCREEN_HEIGHT = (int) (CHAR_HEIGHT * TERM_HEIGHT);
-		//
-		// } else {
-		//
-		// // read new metrics to get exact pixel dimensions
-		// FontMetricsInt fm = defaultPaint.getFontMetricsInt();
-		// int charDescent = fm.descent;
-		//
-		// float[] widths = new float[1];
-		// defaultPaint.getTextWidths("X", widths);
-		//
-		// CHAR_WIDTH = widths[0] - 1;
-		// CHAR_HEIGHT = Math.abs(fm.top) + Math.abs(fm.descent) + 1;
-		//
-		// SCREEN_WIDTH = (int) (CHAR_WIDTH * TERM_WIDTH);
-		// SCREEN_HEIGHT = (int) (CHAR_HEIGHT * TERM_HEIGHT);
-		//
-		// SCREEN_WIDTH = Math.max(SCREEN_WIDTH, SCREEN_WIDTH_DEFAULT);
-		// SCREEN_HEIGHT = Math.max(SCREEN_HEIGHT, SCREEN_HEIGHT_DEFAULT);
-		//
-		// Log.d(TAG, charDescent + "#" + CHAR_WIDTH + "," + CHAR_HEIGHT + "/"
-		// + SCREEN_WIDTH + "," + SCREEN_HEIGHT);
-		// }
+		defaultPaint.setTypeface(typeface);
+		defaultPaint.setTextSize(fontSize);
+		defaultPaint.setColor(Color.BLACK);
 
 		bitmap = Bitmap.createBitmap(SCREEN_WIDTH, SCREEN_HEIGHT,
 				Config.ARGB_8888);
 		canvas.setBitmap(bitmap);
-		defaultPaint.setColor(Color.BLACK);
 		canvas.drawRect(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, defaultPaint);
 		fullRedraw = true;
 		redraw();
 
 		this.postInvalidate();
 		terminalActivity.refreshView();
+
+		// Workaround to create array of ArrayList generic type.
+		urls = (ArrayList<Url>[]) Array.newInstance(ArrayList.class, TERM_HEIGHT);
 	}
 
 	@Override
@@ -571,8 +525,7 @@ public class TerminalView extends View implements VDUDisplay {
 
 				// correctly set bold and underlined attributes if requested
 				// defaultPaint.setFakeBoldText((currAttr & VDUBuffer.BOLD)!=0);
-				defaultPaint
-						.setUnderlineText((currAttr & VDUBuffer.UNDERLINE) != 0);
+				defaultPaint.setUnderlineText((currAttr & VDUBuffer.UNDERLINE) != 0);
 
 				// determine the amount of continuous characters with the
 				// same

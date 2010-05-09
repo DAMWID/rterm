@@ -66,15 +66,6 @@ public class AddressBookActivity extends ListActivity {
 		//Auto Hiresolution Detection
 		DisplayMetrics dm = new DisplayMetrics(); 
 		getWindowManager().getDefaultDisplay().getMetrics(dm);
-		if(dm.density >= 1.5)
-		{
-			pref.edit().putBoolean("settings_highresolution",true);
-			pref.edit().commit();
-		}else{
-			pref.edit().putBoolean("settings_highresolution",false);
-			pref.edit().commit();
-		}
-		
 		setContentView(R.layout.act_addressbook);
 	}
 

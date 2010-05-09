@@ -96,9 +96,8 @@ public class TerminalActivity extends Activity {
 		pref = PreferenceManager
 				.getDefaultSharedPreferences(this);
 
-		if (!pref.getBoolean(Constants.SETTINGS_SHOW_STATUSBAR, false))
-			getWindow().setFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN,
-					WindowManager.LayoutParams.FLAG_FULLSCREEN);
+		getWindow().setFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN,
+				WindowManager.LayoutParams.FLAG_FULLSCREEN);
 
 		requestWindowFeature(Window.FEATURE_NO_TITLE);
 		setContentView(R.layout.act_terminal);
@@ -275,7 +274,7 @@ public class TerminalActivity extends Activity {
 				.getView(currentViewId);
 		
 		if (view == null) {
-			view = new TerminalView(this, null, this, pref.getBoolean("settings_highresolution", false));
+			view = new TerminalView(this, null, this);
 			view.terminalActivity = this;
 			view.startConnection(host);
 			TerminalManager.getInstance().putView(view);
