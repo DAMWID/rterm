@@ -63,7 +63,11 @@ public class TelnetWrapper extends Wrapper {
 	/** debugging level */
 	private final static int debug = 0;
 
-	public TelnetWrapper() {
+	private int width = 80;
+	private int height = 24;
+	public TelnetWrapper(int w, int h) {
+		width = w;
+		height = h;
 		handler = new TelnetProtocolHandler() {
 			/** get the current terminal type */
 			public String getTerminalType() {
@@ -72,7 +76,7 @@ public class TelnetWrapper extends Wrapper {
 
 			/** get the current window size */
 			public Dimension getWindowSize() {
-				return new Dimension(80, 25);
+				return new Dimension(width, height);
 			}
 
 			/** notify about local echo */

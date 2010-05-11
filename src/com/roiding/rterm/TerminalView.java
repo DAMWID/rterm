@@ -11,11 +11,13 @@ import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
+import android.graphics.Rect;
 import android.graphics.Typeface;
 import android.graphics.Bitmap.Config;
 import android.os.Environment;
 import android.os.SystemClock;
 import android.util.AttributeSet;
+import android.util.FloatMath;
 import android.util.Log;
 import android.util.DisplayMetrics;
 import android.view.KeyCharacterMap;
@@ -40,8 +42,13 @@ import de.mud.terminal.vt320;
 public class TerminalView extends View implements VDUDisplay {
 	final String TAG = "rterm.view";
 
-	private static int TERM_WIDTH = 80;
-	private static int TERM_HEIGHT = 24;
+	private final String SAMPLE_STR = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ懿0123456789";
+
+	private static final int MIN_TERM_WIDTH = 80;
+	private static final int MIN_TERM_HEIGHT = 24;
+
+	private static int TERM_WIDTH;
+	private static int TERM_HEIGHT;
 
 	private ArrayList<Url>[] urls;
 
@@ -50,7 +57,8 @@ public class TerminalView extends View implements VDUDisplay {
 	public int SCREEN_WIDTH;
 	public int SCREEN_HEIGHT;
 	
-	private float fontSize = 11.5f;
+	private float fontSize;
+	private int bottom;
 
 	private static final int SCROLLBACK = 50;
 	private static final int DEFAULT_FG_COLOR = 7;
@@ -90,7 +98,41 @@ public class TerminalView extends View implements VDUDisplay {
 	public void init() {
 		resetColors();
 
-		buffer = new vt320() {
+		File fontfile0 = new File(Environment.getExternalStorageDirectory(), "rterm/font.ttf");
+		File fontfile1 = new File(Environment.getRootDirectory(), "fonts/DroidSansJapanese.ttf");
+		if (fontfile0.exists())
+			defaultPaint.setTypeface(Typeface.createFromFile(fontfile0));
+		else if (fontfile1.exists())
+			defaultPaint.setTypeface(Typeface.createFromFile(fontfile1));
+		else
+			defaultPaint.setTypeface(Typeface.MONOSPACE);
+
+		defaultPaint.setAntiAlias(true);
+		defaultPaint.setColor(Color.BLACK);
+
+		DisplayMetrics dm = new DisplayMetrics();
+		terminalActivity.getWindowManager().getDefaultDisplay().getMetrics(dm);
+		SCREEN_WIDTH = dm.widthPixels;
+		SCREEN_HEIGHT = dm.heightPixels;
+
+		TERM_HEIGHT = MIN_TERM_HEIGHT;
+		CHAR_HEIGHT = (int)(SCREEN_HEIGHT / TERM_HEIGHT);
+		for (fontSize = (int)CHAR_HEIGHT;;fontSize--) {
+			defaultPaint.setTextSize(fontSize);
+			Paint.FontMetrics fm = defaultPaint.getFontMetrics();
+			if (fm.ascent + fm.descent > CHAR_HEIGHT) continue;
+			CHAR_WIDTH = (int)Math.max(defaultPaint.measureText("W"), CHAR_HEIGHT / 2);
+			TERM_WIDTH = (int)(SCREEN_WIDTH / CHAR_WIDTH);
+			Log.d(TAG, "Term: " + TERM_WIDTH + "x" + TERM_HEIGHT + ", " + CHAR_WIDTH + "x" + CHAR_HEIGHT);
+			if (TERM_WIDTH >= MIN_TERM_WIDTH) break;
+		}
+
+		Rect r = new Rect();
+		defaultPaint.getTextBounds(SAMPLE_STR, 0, SAMPLE_STR.length(), r);
+		Log.d(TAG, "top:" + r.top + ", left:" + r.left + ", right:" + r.right + ", bottom:" + r.bottom);
+		bottom = r.bottom;
+
+		buffer = new vt320(TERM_WIDTH, TERM_HEIGHT) {
 			public void beep() {
 				Log.i(TAG, "beep");
 			}
@@ -104,32 +146,8 @@ public class TerminalView extends View implements VDUDisplay {
 			}
 		};
 
-		DisplayMetrics dm = new DisplayMetrics();
-		terminalActivity.getWindowManager().getDefaultDisplay().getMetrics(dm);
-		SCREEN_WIDTH = dm.widthPixels;
-		SCREEN_HEIGHT = dm.heightPixels;
-
-		if ((SCREEN_WIDTH * 2 / TERM_WIDTH) > (SCREEN_HEIGHT / TERM_HEIGHT)) {
-			fontSize = (int)(SCREEN_HEIGHT / TERM_HEIGHT);
-		} else {
-			fontSize = (int)(SCREEN_WIDTH * 2 / TERM_WIDTH);
-		}
-
-		CHAR_WIDTH = (int)(fontSize / 2);
-		fontSize = CHAR_HEIGHT = CHAR_WIDTH * 2;
-		TERM_WIDTH = (int)(SCREEN_WIDTH / CHAR_WIDTH);
-		TERM_HEIGHT = (int)(SCREEN_HEIGHT / CHAR_HEIGHT);
-		
 		buffer.setBufferSize(SCROLLBACK);
 		buffer.setDisplay(this);
-		buffer.setScreenSize(TERM_WIDTH, TERM_HEIGHT, true);
-
-		File fontfile = new File(Environment.getRootDirectory(), "fonts/DroidSansJapanese.ttf");
-		Typeface typeface = fontfile.exists() ? Typeface.createFromFile(fontfile) : Typeface.MONOSPACE;
-		defaultPaint.setAntiAlias(true);
-		defaultPaint.setTypeface(typeface);
-		defaultPaint.setTextSize(fontSize);
-		defaultPaint.setColor(Color.BLACK);
 
 		bitmap = Bitmap.createBitmap(SCREEN_WIDTH, SCREEN_HEIGHT,
 				Config.ARGB_8888);
@@ -527,6 +545,10 @@ public class TerminalView extends View implements VDUDisplay {
 				// defaultPaint.setFakeBoldText((currAttr & VDUBuffer.BOLD)!=0);
 				defaultPaint.setUnderlineText((currAttr & VDUBuffer.UNDERLINE) != 0);
 
+				// redraw next line if underlined text is drawn for this line
+				if (((currAttr & VDUBuffer.UNDERLINE) != 0) && ((l + 1) < buffer.height))
+					buffer.update[l + 2] = true;
+
 				// determine the amount of continuous characters with the
 				// same
 				// settings and print them all at once
@@ -550,6 +572,8 @@ public class TerminalView extends View implements VDUDisplay {
 								}
 							}
 							defaultPaint.setUnderlineText(true);  // Underline the url
+							// redraw next line if underlined text is drawn for this line
+							if ((l + 1) < buffer.height) buffer.update[l + 2] = true;
 							
 							current = String.valueOf(
 									buffer.charArray[buffer.windowBase + l], c, addr + 1);
@@ -571,7 +595,7 @@ public class TerminalView extends View implements VDUDisplay {
 
 				// clear this dirty area with background color
 				defaultPaint.setColor(bg);
-				canvas.drawRect(c * CHAR_WIDTH, (l * CHAR_HEIGHT) - 1,
+				canvas.drawRect(c * CHAR_WIDTH, l * CHAR_HEIGHT,
 						(c + addr) * CHAR_WIDTH, (l + 1) * CHAR_HEIGHT,
 						defaultPaint);
 
@@ -595,7 +619,7 @@ public class TerminalView extends View implements VDUDisplay {
 
 						canvas.drawText(String.valueOf(_c),
 								(c + asciiCharCount) * CHAR_WIDTH,
-								((l + 1) * CHAR_HEIGHT) - 4, defaultPaint);
+								((l + 1) * CHAR_HEIGHT) - bottom, defaultPaint);
 
 						if ((int) _c < 128)
 							asciiCharCount++;
@@ -649,7 +673,7 @@ public class TerminalView extends View implements VDUDisplay {
 					int hostPort = host.getPort();
 
 					if ("telnet".equalsIgnoreCase(hostProtocal)) {
-						connection = new TelnetWrapper();
+						connection = new TelnetWrapper(TERM_WIDTH, TERM_HEIGHT);
 						connection.connect(hostHost, hostPort);
 
 						if (hostUser != null && hostPass != null
