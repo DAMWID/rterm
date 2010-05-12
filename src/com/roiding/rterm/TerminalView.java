@@ -98,14 +98,11 @@ public class TerminalView extends View implements VDUDisplay {
 	public void init() {
 		resetColors();
 
-		File fontfile0 = new File(Environment.getExternalStorageDirectory(), "rterm/font.ttf");
-		File fontfile1 = new File(Environment.getRootDirectory(), "fonts/DroidSansJapanese.ttf");
-		if (fontfile0.exists())
-			defaultPaint.setTypeface(Typeface.createFromFile(fontfile0));
-		else if (fontfile1.exists())
-			defaultPaint.setTypeface(Typeface.createFromFile(fontfile1));
+		File fontfile = new File(Environment.getExternalStorageDirectory(), "rterm/rterm.ttf");
+		if (fontfile.exists())
+			defaultPaint.setTypeface(Typeface.createFromFile(fontfile));
 		else
-			defaultPaint.setTypeface(Typeface.MONOSPACE);
+			defaultPaint.setTypeface(Typeface.createFromAsset(getContext().getAssets(), "fonts/rterm.ttf"));
 
 		defaultPaint.setAntiAlias(true);
 		defaultPaint.setColor(Color.BLACK);
